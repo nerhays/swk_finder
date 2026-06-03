@@ -1,0 +1,53 @@
+# =====================
+# FLUTTER
+# =====================
+
+swk_surabaya/.dart_tool/
+swk_surabaya/.idea/
+swk_surabaya/build/
+swk_surabaya/.flutter-plugins
+swk_surabaya/.flutter-plugins-dependencies
+swk_surabaya/.metadata
+
+# Android
+swk_surabaya/android/.gradle/
+swk_surabaya/android/app/build/
+
+# iOS
+swk_surabaya/ios/Pods/
+swk_surabaya/ios/.symlinks/
+
+# MacOS
+swk_surabaya/macos/Pods/
+
+# Windows
+swk_surabaya/windows/flutter/ephemeral/
+
+# Linux
+swk_surabaya/linux/flutter/ephemeral/
+
+# =====================
+# NODEJS API
+# =====================
+
+swk-api/node_modules/
+
+# ENV
+swk-api/.env
+
+# Logs
+swk-api/*.log
+swk-api/npm-debug.log*
+
+# =====================
+# VSCODE
+# =====================
+
+.vscode/
+
+# =====================
+# OS
+# =====================
+
+.DS_Store
+Thumbs.db
