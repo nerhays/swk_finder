@@ -3,7 +3,9 @@ import 'map_tab.dart';
 import 'list_tab.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final dynamic selectedPlace;
+
+  const HomeScreen({super.key, this.selectedPlace});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -12,7 +14,22 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int currentIndex = 0;
 
-  final pages = [const MapTab(), const ListTab(), const AboutPage()];
+  late List pages;
+
+  @override
+  void initState() {
+    super.initState();
+
+    pages = [
+      MapTab(targetPlace: widget.selectedPlace),
+      const ListTab(),
+      const AboutPage(),
+    ];
+
+    if (widget.selectedPlace != null) {
+      currentIndex = 0;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +37,10 @@ class _HomeScreenState extends State<HomeScreen> {
       body: pages[currentIndex],
 
       bottomNavigationBar: BottomNavigationBar(
+        selectedItemColor: Colors.orange,
+
+        unselectedItemColor: Colors.grey,
+
         currentIndex: currentIndex,
 
         onTap: (index) {
@@ -48,7 +69,7 @@ class AboutPage extends StatelessWidget {
     return const Scaffold(
       body: Center(
         child: Text(
-          "SWK Finder Surabaya\nFlutter + MongoDB Atlas",
+          "SWK Finder Surabaya\nJumlah SWK : 50\nKategori : 5\nAPI : Railway\nDatabase : MongoDB Atlas\nVersi : 1.0",
           textAlign: TextAlign.center,
         ),
       ),

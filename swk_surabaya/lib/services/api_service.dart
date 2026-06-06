@@ -6,7 +6,9 @@ class ApiService {
   // GET Categories
   Future<List<dynamic>> getCategories() async {
     try {
-      final response = await dio.get("http://localhost:5000/api/categories");
+      final response = await dio.get(
+        "https://swkfinder-production.up.railway.app/api/categories",
+      );
 
       return response.data;
     } catch (e) {
@@ -20,7 +22,7 @@ class ApiService {
   Future<List<dynamic>> getPlaces(String categoryId) async {
     try {
       final response = await dio.get(
-        "http://localhost:5000/api/places?category_id=$categoryId",
+        "https://swkfinder-production.up.railway.app/api/places?category_id=$categoryId",
       );
 
       return response.data;
@@ -33,7 +35,9 @@ class ApiService {
 
   Future<dynamic> getPlaceDetail(String id) async {
     try {
-      final response = await dio.get("http://localhost:5000/api/places/$id");
+      final response = await dio.get(
+        "https://swkfinder-production.up.railway.app/api/places/$id",
+      );
 
       return response.data;
     } catch (e) {
@@ -45,7 +49,9 @@ class ApiService {
 
   Future<List<dynamic>> getAllPlaces() async {
     try {
-      final response = await dio.get("http://localhost:5000/api/places");
+      final response = await dio.get(
+        "https://swkfinder-production.up.railway.app/api/places",
+      );
 
       return response.data;
     } catch (e) {

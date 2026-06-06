@@ -7,7 +7,9 @@ import 'detail_screen.dart';
 import 'package:dio/dio.dart';
 
 class MapTab extends StatefulWidget {
-  const MapTab({super.key});
+  final dynamic targetPlace;
+
+  const MapTab({super.key, this.targetPlace});
 
   @override
   State<MapTab> createState() => _MapTabState();
@@ -20,7 +22,8 @@ class _MapTabState extends State<MapTab> {
   Position? currentPosition;
   dynamic selectedPlace;
   bool isRouting = false;
-
+  bool isLoading = true;
+  String? errorMessage;
   String selectedCategory = "Semua";
 
   List<LatLng> routePoints = [];
@@ -70,7 +73,20 @@ class _MapTabState extends State<MapTab> {
       }
 
       currentPosition = await Geolocator.getCurrentPosition();
+      if (widget.targetPlace != null) {
+        selectedPlace = widget.targetPlace;
 
+        double lat = double.parse(widget.targetPlace["latitude"].toString());
+
+        double lng = double.parse(widget.targetPlace["longitude"].toString());
+
+        await getRoute(
+          currentPosition!.latitude,
+          currentPosition!.longitude,
+          lat,
+          lng,
+        );
+      }
       setState(() {});
     } catch (e) {
       print("GPS ERROR : $e");
@@ -78,11 +94,22 @@ class _MapTabState extends State<MapTab> {
   }
 
   Future loadPlaces() async {
-    places = await ApiService().getAllPlaces();
+    try {
+      isLoading = true;
+      errorMessage = null;
 
-    filteredPlaces = places;
+      setState(() {});
 
-    setState(() {});
+      places = await ApiService().getAllPlaces();
+
+      filteredPlaces = places;
+    } catch (e) {
+      errorMessage = "Gagal mengambil data.\nPeriksa koneksi internet.";
+    } finally {
+      isLoading = false;
+
+      setState(() {});
+    }
   }
 
   void filterCategory(String categoryId) {
@@ -129,7 +156,7 @@ class _MapTabState extends State<MapTab> {
 
     showModalBottomSheet(
       context: context,
-
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
@@ -144,66 +171,134 @@ class _MapTabState extends State<MapTab> {
               MaterialPageRoute(builder: (_) => DetailScreen(place: place)),
             );
           },
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
 
-          child: Padding(
-            padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
 
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
 
-              crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // FOTO SWK
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(12),
+                    ),
 
-              children: [
-                Text(
-                  place["name"] ?? "",
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+                    child: Image.network(
+                      place["imageUrl"] ?? "",
+
+                      height: 180,
+                      width: double.infinity,
+
+                      fit: BoxFit.cover,
+
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+
+                        return const SizedBox(
+                          height: 180,
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      },
+
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          height: 180,
+                          color: Colors.grey.shade300,
+
+                          child: const Center(
+                            child: Icon(
+                              Icons.restaurant,
+                              size: 60,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 10),
+                  const SizedBox(height: 15),
 
-                Text(place["addres"] ?? ""),
-
-                const SizedBox(height: 10),
-
-                Text(
-                  "⭐ ${place["rating"] ?? 0} "
-                  "(${place["rater"] ?? 0} review)",
-                ),
-
-                const SizedBox(height: 10),
-
-                Text("📍 ${distanceKm.toStringAsFixed(2)} km dari lokasi Anda"),
-
-                const SizedBox(height: 20),
-
-                SizedBox(
-                  width: double.infinity,
-
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.navigation),
-
-                    label: const Text("TUNJUKKAN RUTE"),
-
-                    onPressed: () async {
-                      Navigator.pop(context);
-
-                      if (currentPosition == null) {
-                        return;
-                      }
-                      selectedPlace = place;
-                      await getRoute(
-                        currentPosition!.latitude,
-                        currentPosition!.longitude,
-                        lat,
-                        lng,
-                      );
-                    },
+                  Text(
+                    place["name"] ?? "",
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ],
+
+                  const SizedBox(height: 10),
+
+                  Text(place["addres"] ?? ""),
+                  const SizedBox(height: 10),
+
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_month, color: Colors.green),
+
+                      const SizedBox(width: 8),
+
+                      Expanded(child: Text(place["hari_buka"] ?? "-")),
+                    ],
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time, color: Colors.orange),
+
+                      const SizedBox(width: 8),
+
+                      Text(place["jam_buka"] ?? "-"),
+                    ],
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  Text(
+                    "⭐ ${place["rating"] ?? 0} "
+                    "(${place["rater"] ?? 0} review)",
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  Text(
+                    "📍 ${distanceKm.toStringAsFixed(2)} km dari lokasi Anda",
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  SizedBox(
+                    width: double.infinity,
+
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.navigation),
+
+                      label: const Text("TUNJUKKAN RUTE"),
+
+                      onPressed: () async {
+                        Navigator.pop(context);
+
+                        if (currentPosition == null) {
+                          return;
+                        }
+                        selectedPlace = place;
+                        await getRoute(
+                          currentPosition!.latitude,
+                          currentPosition!.longitude,
+                          lat,
+                          lng,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -213,9 +308,47 @@ class _MapTabState extends State<MapTab> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (errorMessage != null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.cloud_off, size: 80, color: Colors.red),
+
+              const SizedBox(height: 10),
+
+              Text(errorMessage!, textAlign: TextAlign.center),
+
+              const SizedBox(height: 10),
+
+              ElevatedButton(
+                onPressed: loadPlaces,
+                child: const Text("Coba Lagi"),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return Scaffold(
       body: Stack(
         children: [
+          if (filteredPlaces.isEmpty)
+            const Center(
+              child: Card(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text(
+                    "Data tidak ditemukan",
+                    style: TextStyle(fontSize: 18),
+                  ),
+                ),
+              ),
+            ),
           FlutterMap(
             mapController: mapController,
             options: MapOptions(
@@ -232,7 +365,8 @@ class _MapTabState extends State<MapTab> {
 
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate:
+                    'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
               ),
 
               // GARIS RUTE USER -> SWK
@@ -312,12 +446,15 @@ class _MapTabState extends State<MapTab> {
           ),
           if (isRouting)
             Positioned(
-              top: 120,
-              right: 15,
-              child: FloatingActionButton(
-                mini: true,
+              bottom: 80,
+              right: 16,
+              child: FloatingActionButton.extended(
                 backgroundColor: Colors.white,
-                child: const Icon(Icons.close, color: Colors.red),
+                icon: const Icon(Icons.close, color: Colors.red),
+                label: const Text(
+                  "Batalkan Rute",
+                  style: TextStyle(color: Colors.red),
+                ),
                 onPressed: () {
                   setState(() {
                     routePoints.clear();

@@ -41,7 +41,6 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.name)),
-
       body: FlutterMap(
         options: MapOptions(
           initialCenter: LatLng(widget.latitude, widget.longitude),
@@ -50,8 +49,8 @@ class _MapScreenState extends State<MapScreen> {
 
         children: [
           TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.example.swk_surabaya',
+            urlTemplate:
+                'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
           ),
 
           MarkerLayer(
