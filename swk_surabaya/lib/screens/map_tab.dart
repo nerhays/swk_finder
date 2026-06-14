@@ -403,43 +403,48 @@ class _MapTabState extends State<MapTab> {
 
                   // MARKER SWK
                   // MARKER SWK
-                  ...(isRouting ? [selectedPlace] : filteredPlaces).map((
-                    place,
-                  ) {
-                    double lat =
-                        double.tryParse(place["latitude"]?.toString() ?? "") ??
-                        0;
+                  ...(isRouting && selectedPlace != null
+                          ? [selectedPlace]
+                          : filteredPlaces)
+                      .map((place) {
+                        double lat =
+                            double.tryParse(
+                              place["latitude"]?.toString() ?? "",
+                            ) ??
+                            0;
 
-                    double lng =
-                        double.tryParse(place["longitude"]?.toString() ?? "") ??
-                        0;
+                        double lng =
+                            double.tryParse(
+                              place["longitude"]?.toString() ?? "",
+                            ) ??
+                            0;
 
-                    if (lat == 0 || lng == 0) {
-                      return Marker(
-                        point: const LatLng(-7.2756, 112.7508),
-                        width: 1,
-                        height: 1,
-                        child: const SizedBox(),
-                      );
-                    }
+                        if (lat == 0 || lng == 0) {
+                          return Marker(
+                            point: const LatLng(-7.2756, 112.7508),
+                            width: 1,
+                            height: 1,
+                            child: const SizedBox(),
+                          );
+                        }
 
-                    return Marker(
-                      point: LatLng(lat, lng),
+                        return Marker(
+                          point: LatLng(lat, lng),
 
-                      width: 60,
-                      height: 60,
+                          width: 60,
+                          height: 60,
 
-                      child: GestureDetector(
-                        onTap: () => showPlaceCard(place),
+                          child: GestureDetector(
+                            onTap: () => showPlaceCard(place),
 
-                        child: const Icon(
-                          Icons.location_on,
-                          color: Colors.red,
-                          size: 40,
-                        ),
-                      ),
-                    );
-                  }),
+                            child: const Icon(
+                              Icons.location_on,
+                              color: Colors.red,
+                              size: 40,
+                            ),
+                          ),
+                        );
+                      }),
                 ],
               ),
             ],
