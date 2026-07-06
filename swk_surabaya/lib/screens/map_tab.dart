@@ -41,25 +41,54 @@ class _MapTabState extends State<MapTab> {
     double endLat,
     double endLng,
   ) async {
-    final response = await Dio().get(
-      "https://router.project-osrm.org/route/v1/driving/"
-      "$startLng,$startLat;"
-      "$endLng,$endLat"
-      "?overview=full&geometries=geojson",
-    );
-    print(response.data);
-    final coordinates = response.data["routes"][0]["geometry"]["coordinates"];
+    try {
+      final response = await Dio().get(
+        "https://router.project-osrm.org/route/v1/driving/"
+        "$startLng,$startLat;"
+        "$endLng,$endLat"
+        "?overview=full&geometries=geojson",
+      );
 
-    routePoints =
-        coordinates.map<LatLng>((c) {
-          return LatLng(c[1].toDouble(), c[0].toDouble());
-        }).toList();
-    isRouting = true;
+      if (response.data == null ||
+          response.data["routes"] == null ||
+          response.data["routes"].isEmpty) {
+        return;
+      }
 
-    setState(() {});
+      final coordinates = response.data["routes"][0]["geometry"]["coordinates"];
 
-    if (routePoints.isNotEmpty) {
-      mapController.move(routePoints.first, 14);
+      routePoints =
+          coordinates
+              .map<LatLng?>((c) {
+                final lat = (c[1] as num).toDouble();
+                final lng = (c[0] as num).toDouble();
+
+                if (!lat.isFinite || !lng.isFinite) {
+                  return null;
+                }
+
+                return LatLng(lat, lng);
+              })
+              .whereType<LatLng>()
+              .toList();
+
+      routePoints.removeWhere(
+        (p) => !p.latitude.isFinite || !p.longitude.isFinite,
+      );
+
+      if (routePoints.isNotEmpty) {
+        isRouting = true;
+
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            mapController.move(routePoints.first, 14);
+          }
+        });
+      }
+
+      setState(() {});
+    } catch (e) {
+      debugPrint("ROUTE ERROR : $e");
     }
   }
 
@@ -73,12 +102,21 @@ class _MapTabState extends State<MapTab> {
       }
 
       currentPosition = await Geolocator.getCurrentPosition();
+
+      if (!currentPosition!.latitude.isFinite ||
+          !currentPosition!.longitude.isFinite) {
+        return;
+      }
       if (widget.targetPlace != null) {
         selectedPlace = widget.targetPlace;
 
-        double lat = double.parse(widget.targetPlace["latitude"].toString());
+        final lat = double.tryParse(widget.targetPlace["latitude"].toString());
 
-        double lng = double.parse(widget.targetPlace["longitude"].toString());
+        final lng = double.tryParse(widget.targetPlace["longitude"].toString());
+
+        if (lat == null || lng == null) {
+          return;
+        }
 
         await getRoute(
           currentPosition!.latitude,
@@ -97,42 +135,45 @@ class _MapTabState extends State<MapTab> {
     try {
       isLoading = true;
       errorMessage = null;
-
       setState(() {});
 
-      places = await ApiService().getAllPlaces();
-
-      filteredPlaces = places;
+      final result = await ApiService().getAllPlaces();
+      // buang null & pastikan copy baru, bukan reference yang sama
+      places = List<dynamic>.from(result.where((p) => p != null));
+      filteredPlaces = List<dynamic>.from(places);
     } catch (e) {
       errorMessage = "Gagal mengambil data.\nPeriksa koneksi internet.";
     } finally {
       isLoading = false;
-
       setState(() {});
     }
   }
 
   void filterCategory(String categoryId) {
     if (categoryId == "Semua") {
-      filteredPlaces = places;
+      filteredPlaces = List<dynamic>.from(places);
     } else {
       filteredPlaces =
-          places.where((place) {
-            return place["category_id"] == categoryId;
-          }).toList();
+          places
+              .where(
+                (place) => place != null && place["category_id"] == categoryId,
+              )
+              .toList();
     }
-
     setState(() {});
   }
 
   void search(String keyword) {
     filteredPlaces =
-        places.where((place) {
-          return place["name"].toString().toLowerCase().contains(
-            keyword.toLowerCase(),
-          );
-        }).toList();
-
+        places
+            .where(
+              (place) =>
+                  place != null &&
+                  place["name"].toString().toLowerCase().contains(
+                    keyword.toLowerCase(),
+                  ),
+            )
+            .toList();
     setState(() {});
   }
 
@@ -358,15 +399,20 @@ class _MapTabState extends State<MapTab> {
                         currentPosition!.latitude,
                         currentPosition!.longitude,
                       )
-                      : LatLng(-7.2756, 112.7508),
+                      : const LatLng(-7.2756, 112.7508),
 
               initialZoom: 13,
+
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.all,
+              ),
             ),
 
             children: [
               TileLayer(
                 urlTemplate:
                     'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.swk_surabaya',
               ),
 
               // GARIS RUTE USER -> SWK
@@ -403,40 +449,30 @@ class _MapTabState extends State<MapTab> {
 
                   // MARKER SWK
                   // MARKER SWK
-                  ...(isRouting && selectedPlace != null
+                  ...((isRouting && selectedPlace != null)
                           ? [selectedPlace]
                           : filteredPlaces)
+                      .whereType<Map>()
                       .map((place) {
-                        double lat =
-                            double.tryParse(
-                              place["latitude"]?.toString() ?? "",
-                            ) ??
-                            0;
+                        final lat = double.tryParse("${place["latitude"]}");
 
-                        double lng =
-                            double.tryParse(
-                              place["longitude"]?.toString() ?? "",
-                            ) ??
-                            0;
+                        final lng = double.tryParse("${place["longitude"]}");
 
-                        if (lat == 0 || lng == 0) {
-                          return Marker(
-                            point: const LatLng(-7.2756, 112.7508),
-                            width: 1,
-                            height: 1,
-                            child: const SizedBox(),
-                          );
+                        if (lat == null ||
+                            lng == null ||
+                            !lat.isFinite ||
+                            !lng.isFinite) {
+                          debugPrint("Skip Marker : ${place["name"]}");
+
+                          return null;
                         }
 
                         return Marker(
                           point: LatLng(lat, lng),
-
                           width: 60,
                           height: 60,
-
                           child: GestureDetector(
                             onTap: () => showPlaceCard(place),
-
                             child: const Icon(
                               Icons.location_on,
                               color: Colors.red,
@@ -444,7 +480,8 @@ class _MapTabState extends State<MapTab> {
                             ),
                           ),
                         );
-                      }),
+                      })
+                      .whereType<Marker>(),
                 ],
               ),
             ],
