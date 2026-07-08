@@ -27,6 +27,10 @@ class _MapTabState extends State<MapTab> {
   String selectedCategory = "Semua";
 
   List<LatLng> routePoints = [];
+  bool get _hasValidPosition =>
+      currentPosition != null &&
+      currentPosition!.latitude.isFinite &&
+      currentPosition!.longitude.isFinite;
 
   @override
   void initState() {
@@ -62,15 +66,21 @@ class _MapTabState extends State<MapTab> {
               .map<LatLng?>((c) {
                 final lat = (c[1] as num).toDouble();
                 final lng = (c[0] as num).toDouble();
-
-                if (!lat.isFinite || !lng.isFinite) {
-                  return null;
-                }
-
+                if (!lat.isFinite || !lng.isFinite) return null;
                 return LatLng(lat, lng);
               })
               .whereType<LatLng>()
               .toList();
+
+      // Buang titik duplikat/berjarak nyaris nol berturut-turut
+      final deduped = <LatLng>[];
+      for (final p in routePoints) {
+        if (deduped.isEmpty ||
+            const Distance().as(LengthUnit.Meter, deduped.last, p) > 0.5) {
+          deduped.add(p);
+        }
+      }
+      routePoints = deduped;
 
       routePoints.removeWhere(
         (p) => !p.latitude.isFinite || !p.longitude.isFinite,
@@ -101,22 +111,28 @@ class _MapTabState extends State<MapTab> {
         return;
       }
 
-      currentPosition = await Geolocator.getCurrentPosition();
+      final pos = await Geolocator.getCurrentPosition();
 
-      if (!currentPosition!.latitude.isFinite ||
-          !currentPosition!.longitude.isFinite) {
+      // Validasi DULU sebelum diassign ke field state
+      if (!pos.latitude.isFinite || !pos.longitude.isFinite) {
+        currentPosition = null; // pastikan tidak menyimpan nilai NaN
+        setState(() {});
         return;
       }
+
+      currentPosition = pos;
+
       if (widget.targetPlace != null) {
-        selectedPlace = widget.targetPlace;
-
         final lat = double.tryParse(widget.targetPlace["latitude"].toString());
-
         final lng = double.tryParse(widget.targetPlace["longitude"].toString());
 
-        if (lat == null || lng == null) {
+        // Tambahkan cek isFinite, bukan cuma null
+        if (lat == null || lng == null || !lat.isFinite || !lng.isFinite) {
+          setState(() {});
           return;
         }
+
+        selectedPlace = widget.targetPlace;
 
         await getRoute(
           currentPosition!.latitude,
@@ -127,7 +143,7 @@ class _MapTabState extends State<MapTab> {
       }
       setState(() {});
     } catch (e) {
-      print("GPS ERROR : $e");
+      debugPrint("GPS ERROR : $e");
     }
   }
 
@@ -394,7 +410,7 @@ class _MapTabState extends State<MapTab> {
             mapController: mapController,
             options: MapOptions(
               initialCenter:
-                  currentPosition != null
+                  _hasValidPosition
                       ? LatLng(
                         currentPosition!.latitude,
                         currentPosition!.longitude,
@@ -404,7 +420,11 @@ class _MapTabState extends State<MapTab> {
               initialZoom: 13,
 
               interactionOptions: const InteractionOptions(
-                flags: InteractiveFlag.all,
+                flags:
+                    InteractiveFlag.drag |
+                    InteractiveFlag.pinchZoom |
+                    InteractiveFlag.doubleTapZoom |
+                    InteractiveFlag.scrollWheelZoom,
               ),
             ),
 
@@ -430,7 +450,7 @@ class _MapTabState extends State<MapTab> {
               MarkerLayer(
                 markers: [
                   // MARKER USER
-                  if (currentPosition != null)
+                  if (_hasValidPosition)
                     Marker(
                       point: LatLng(
                         currentPosition!.latitude,
